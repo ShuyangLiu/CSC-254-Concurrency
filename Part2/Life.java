@@ -121,13 +121,19 @@ class Delegator implements Runnable {
     }
 
     public void run() {
-      int counter = 0;
-      System.out.println("*****Starting counter*****");
-        while(true) {
-            runOneGeneration();
-            counter++;
-            System.out.println("counter == " + counter);
-        }
+      try {
+        c.register();
+        int counter = 0;
+        System.out.println("*****Starting counter*****");
+          while(true) {
+              runOneGeneration();
+              counter++;
+              System.out.println("counter == " + counter);
+          }
+      } finally {
+        c.unregister();
+      }
+
     }
 
     public void runOneGeneration() {
@@ -472,14 +478,9 @@ class UI extends JPanel {
     }
 
     public void onRunClick() {
-      try {
-        c.register();
         Delegator d = new Delegator(lb, c, this, numThreads);
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(d);
-      }  finally {
-          c.unregister();
-      }
 
       //d.runAllGenerations();
     }
