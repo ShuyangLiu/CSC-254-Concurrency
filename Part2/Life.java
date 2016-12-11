@@ -16,6 +16,7 @@ import javax.swing.*;
 import java.lang.Thread.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -28,11 +29,12 @@ public class Life {
     private static int numThreads = 1;
         // I currently don't do anything with this variable.
         // You should.
+    private static int numTasks = 1;
     private static boolean headless = false;    // don't create GUI
     private static boolean glider = false;      // create initial glider
 
-    private UI buildUI(RootPaneContainer pane) {
-        return new UI(n, pane, pauseIterations, headless, glider, numThreads);
+    private UI buildUI(RootPaneContainer pane, int numTasks) {
+        return new UI(n, pane, pauseIterations, headless, glider, numThreads, numTasks);
     }
 
     // Print error message and exit.
@@ -76,6 +78,21 @@ public class Life {
                                           args[i]));
                     }
                 }
+            } else if (args[i].equals("-k")) {
+                if (++i >= args.length) {
+                    die("Missing number of tasks\n");
+                } else {
+                    int k = -1;
+                    try {
+                        k = Integer.parseInt(args[i]);
+                    } catch (NumberFormatException e) { }
+                    if (k > 0) {
+                        numTasks = k;
+                    } else {
+                        die(String.format("Invalid number of tasks: %s\n",
+                                          args[i]));
+                    }
+                }
             } else if (args[i].equals("--headless")) {
                 headless = true;
             } else if (args[i].equals("--glider")) {
@@ -95,7 +112,7 @@ public class Life {
             System.exit(0);
           }
         });
-        UI ui = me.buildUI(f);
+        UI ui = me.buildUI(f, numTasks);
         if (headless) {
             ui.onRunClick();
         } else {
@@ -110,46 +127,51 @@ class Delegator implements Runnable {
     private final Coordinator c;
     private final UI u;
     private final int nt;
+    private final int k;
     private final ExecutorService pool;
 
-    public Delegator(LifeBoard LB, Coordinator C, UI U, int numThreads) {
+    public Delegator(LifeBoard LB, Coordinator C, UI U, int numThreads, int numTasks) {
         lb = LB;
         c = C;
         u = U;
         nt = numThreads;
+        k = numTasks;
         pool = Executors.newFixedThreadPool(nt);
     }
 
     public void run() {
       try {
         c.register();
-        int counter = 0;
-        System.out.println("*****Starting counter*****");
           while(true) {
               runOneGeneration();
-              counter++;
-              System.out.println("counter == " + counter);
           }
-      } finally {
+      } catch (Coordinator.KilledException e) {}
+      finally {
         c.unregister();
       }
 
     }
 
-    public void runOneGeneration() {
-        List<Callable<Integer>> tasks = generateTasks();
+    public void runOneGeneration() throws Coordinator.KilledException {
+        List<Callable<Integer>> tasks = generateTasks(k);
         try {
+          long start_time = System.currentTimeMillis();
           pool.invokeAll(tasks);
+          long end_time = System.currentTimeMillis();
+          System.out.print((end_time - start_time) + ", ");
           lb.updateBoard();
         } catch (InterruptedException e) { System.err.println("Exception :("); }
     }
 
     // TODO: actually create list of tasks.
-    public List<Callable<Integer>> generateTasks() {
-      // TODO: complete stub.
+    public List<Callable<Integer>> generateTasks(int numTasks) {
+      int begin = 0;
+      int end = lb.n / numTasks;
       List<Callable<Integer>> tasks = new ArrayList<>();
       for(int i = 0; i < lb.n; i++) {
-          tasks.add(new Worker(lb, c, u, i));
+          tasks.add(new Worker(lb, c, u, new Task(begin, end)));
+          begin += lb.n / numTasks;
+          end += lb.n / numTasks;
       }
       return tasks;
     }
@@ -162,7 +184,7 @@ class Worker implements Callable<Integer> {
     private final LifeBoard lb;
     private final Coordinator c;
     private final UI u;
-    private final int r;
+    private final Task t;
 
     // The run() method of a Java Thread is never invoked directly by
     // user code.  Rather, it is called by the Java runtime when user
@@ -182,7 +204,7 @@ class Worker implements Callable<Integer> {
             c.register();
             try {
                 //while (true) {
-                    lb.doGeneration(r);
+                    lb.doGeneration(t);
                 //}
             } catch(Coordinator.KilledException e) { return 0; /* throw exception instead of catching it? */}
         } finally {
@@ -193,12 +215,23 @@ class Worker implements Callable<Integer> {
 
     // Constructor
     //
-    public Worker(LifeBoard LB, Coordinator C, UI U, int row) {
+    public Worker(LifeBoard LB, Coordinator C, UI U, Task task) {
         lb = LB;
         c = C;
         u = U;
-        r = row;
+        t = task;
     }
+}
+
+class Task {
+    int start;
+    int end;
+
+    public Task(int s, int e) {
+      start = s;
+      end = e;
+    }
+
 }
 
 // The LifeBoard is the Life world, containing all the cells.
@@ -240,8 +273,8 @@ class LifeBoard extends JPanel {
     // c.register() when they start work, and c.unregister() when
     // they finish, so the Coordinator can manage them.
     //
-    public void doGeneration(int i) throws Coordinator.KilledException {
-        //for (int i = 0; i < n; i++) {
+    public void doGeneration(Task task) throws Coordinator.KilledException {
+        for (int i = task.start; i < task.end; i++) {
             for (int j = 0; j < n; j++) {
 
                 // NOTICE: you are REQUIRED to call hesitate() EVERY TIME
@@ -267,12 +300,13 @@ class LifeBoard extends JPanel {
                     case 7 :
                     case 8 : A[i][j] = 0;       break;
                 }
-            //}
+            }
         }
 
     }
 
-    public void updateBoard() {
+    public void updateBoard() throws Coordinator.KilledException {
+      c.hesitate();
       T = B;  B = A;  A = T;
       if (headless) {
           if (generation % 10 == 0) {
@@ -282,7 +316,6 @@ class LifeBoard extends JPanel {
           ++generation;
       } else {
           repaint ();
-          System.out.println("\tRepainting...");
       }
           // tell graphic system that LifeBoard needs to be re-rendered
     }
@@ -381,15 +414,16 @@ class UI extends JPanel {
     private int state = stopped;
 
     private int numThreads;
-
+    private int numTasks;
     // Constructor
     //
     public UI(int N, RootPaneContainer pane, int pauseIterations,
-              boolean headless, boolean glider, int NT) {
+              boolean headless, boolean glider, int NT, int K) {
         final UI u = this;
         c = new Coordinator(pauseIterations);
         lb = new LifeBoard(N, c, u, headless, glider);
         numThreads = NT;
+        numTasks = K;
 
         final JPanel b = new JPanel();   // button panel
 
@@ -478,7 +512,7 @@ class UI extends JPanel {
     }
 
     public void onRunClick() {
-        Delegator d = new Delegator(lb, c, this, numThreads);
+        Delegator d = new Delegator(lb, c, this, numThreads, numTasks);
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(d);
 
