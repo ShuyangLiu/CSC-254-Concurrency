@@ -190,8 +190,8 @@ class Worker extends Thread {
 	                	//System.out.println(Color_Code.CYAN + this.getName() + "is going to notify other threads" +Color_Code.RESET);
 	                	//If this is the last thread
 	                	Life.end_time = System.currentTimeMillis();
-	                	System.out.println(Color_Code.GREEN + "ending time: "+Life.end_time+Color_Code.RESET);
-	                	System.out.println(Color_Code.RED+"Time Interval of this generation: "+(Life.end_time - Life.start_time)+Color_Code.RESET);
+                        System.out.println(Color_Code.wrap("Ending Time: "+Life.end_time, 159));
+                        System.out.println(Color_Code.wrap(Color_Code.bold("Time Interval of this generation: "+(Life.end_time - Life.start_time)), 225));
 	                	Life.counter = 0; // reset counter to zero
 	                	lb.updateBoard(); // update the board
 	                	lb.notifyAll(); // notify all the threads that are waiting to proceed
