@@ -14,20 +14,30 @@ import java.awt.*;          // older of the two standard Java GUIs
 import java.awt.event.*;
 import javax.swing.*;
 import java.lang.Thread.*;
+import java.util.ArrayList;
 
 public class Life {
+	
+	public static volatile long start_time;
+	public static volatile long end_time;
+	
     private static final int n = 100;    // number of cells on a side
     private static int pauseIterations = -(500000000/n/n);
         // nanoseconds per dot for a delay of about a half a second
-    private static long numThreads = 1;
-        // I currently don't do anything with this variable.
-        // You should.
+    public static long numThreads = 1;
+    
     private static boolean headless = false;    // don't create GUI
     private static boolean glider = false;      // create initial glider
 
-    private UI buildUI(RootPaneContainer pane) {
-        return new UI(n, pane, pauseIterations, headless, glider);
+    private static UI u; // store the UI in Life
+    
+    public static volatile int counter = 0; // Thread counter
+    
+    private void buildUI(RootPaneContainer pane) {
+        u = new UI(n, pane, pauseIterations, headless, glider);
     }
+    
+    private static ArrayList<Worker> worker_list;
 
     // Print error message and exit.
     //
@@ -80,23 +90,55 @@ public class Life {
         }
     }
 
-    public static void main(String[] args) {
+    private static void initializeWorkers() {
+    	int begin = 0;
+        int end = (int) (n/numThreads);
+        
+        worker_list = new ArrayList<>();
+        for(int i=0; i<numThreads-1; i++) {
+        	Worker w = new Worker(u.getLifeBoard(), u.getCoordinator(), u); // making a new thread
+        	w.setTask(begin, end);
+        	worker_list.add(w); // add to worker_list to be ready to use
+        	begin += n/numThreads;
+        	end += n/numThreads;
+        }
+        //The last one in case n is not divisible by numThreads
+        Worker w = new Worker(u.getLifeBoard(), u.getCoordinator(), u);
+        w.setTask(begin, n);
+        worker_list.add(w);
+    }
+    public static void main(String[] args) 
+    {
         parseArgs(args);
+        
         Life me = new Life();
+
         JFrame f = new JFrame("Life");
         f.addWindowListener(new WindowAdapter() {
           public void windowClosing(WindowEvent e) {
             System.exit(0);
           }
         });
-        UI ui = me.buildUI(f);
+        me.buildUI(f);
+        initializeWorkers();
+        u.t_list = worker_list; // give a reference to the thread list
+        
         if (headless) {
-            ui.onRunClick();
+            u.onRunClick(worker_list);
         } else {
           f.pack();
           f.setVisible(true);
         }
     }
+}
+
+class Task {
+	int start_index;
+	int end_index;
+	public Task(int s, int e) {
+		start_index = s;
+		end_index = e;
+	}
 }
 
 // The Worker is the thread that does the actual work of calculating new
@@ -106,6 +148,8 @@ class Worker extends Thread {
     private final LifeBoard lb;
     private final Coordinator c;
     private final UI u;
+    
+    private Task t;
 
     // The run() method of a Java Thread is never invoked directly by
     // user code.  Rather, it is called by the Java runtime when user
@@ -123,12 +167,40 @@ class Worker extends Thread {
     public void run() {
         try {
             c.register();
-            try {
-                while (true) {
-                    lb.doGeneration();
+            while (true) {
+            	//System.out.println(this.getName()+" in the while true loop");
+                lb.doGeneration(t.start_index, t.end_index);
+                //Life.counter= Life.counter+1;
+                synchronized (lb) {
+                	if(Life.counter == 0) {
+                		Life.start_time = System.currentTimeMillis();
+                		System.out.println(Color_Code.GREEN + "starting time: "+Life.start_time+Color_Code.RESET);
+                	}
+                	Life.counter= Life.counter+1;
+                	//System.out.println(Life.counter+" from "+this.getName());
+	                if(Life.counter < Life.numThreads) {
+			                try {
+			                	//System.out.println(Color_Code.GREEN + this.getName() + "is going to wait" +Color_Code.RESET);
+			                	lb.wait();// wait until other threads are done with current generation
+			                	//System.out.println(Color_Code.PURPLE + this.getName() + "just waked up" +Color_Code.RESET);
+			                }catch (InterruptedException e) {
+			                	e.printStackTrace();
+			                }
+	                } else {
+	                	//System.out.println(Color_Code.CYAN + this.getName() + "is going to notify other threads" +Color_Code.RESET);
+	                	//If this is the last thread
+	                	Life.end_time = System.currentTimeMillis();
+	                	System.out.println(Color_Code.GREEN + "ending time: "+Life.end_time+Color_Code.RESET);
+	                	System.out.println(Color_Code.RED+"Time Interval of this generation: "+(Life.end_time - Life.start_time)+Color_Code.RESET);
+	                	Life.counter = 0; // reset counter to zero
+	                	lb.updateBoard(); // update the board
+	                	lb.notifyAll(); // notify all the threads that are waiting to proceed
+	                }
                 }
-            } catch(Coordinator.KilledException e) {}
-        } finally {
+            }
+        }
+        catch(Coordinator.KilledException e) {}
+        finally {
             c.unregister();
         }
     }
@@ -139,6 +211,10 @@ class Worker extends Thread {
         lb = LB;
         c = C;
         u = U;
+    }
+    
+    public void setTask(int s, int e) {
+    	this.t = new Task(s,e);
     }
 }
 
@@ -152,7 +228,7 @@ class LifeBoard extends JPanel {
     private static final int border = dotsize;
     static  boolean headless = false;
     private int B[][];  // board contents
-    private int A[][];  // scratch board
+    private volatile int A[][];  // scratch board
     private int T[][];  // temporary pointer
     private int generation = 0;
 
@@ -181,8 +257,8 @@ class LifeBoard extends JPanel {
     // c.register() when they start work, and c.unregister() when
     // they finish, so the Coordinator can manage them.
     //
-    public void doGeneration() throws Coordinator.KilledException {
-        for (int i = 0; i < n; i++) {
+    public void doGeneration(int start, int end) throws Coordinator.KilledException {
+        for (int i = start; i < end; i++) {
             for (int j = 0; j < n; j++) {
 
                 // NOTICE: you are REQUIRED to call hesitate() EVERY TIME
@@ -210,17 +286,21 @@ class LifeBoard extends JPanel {
                 }
             }
         }
-        T = B;  B = A;  A = T;
-        if (headless) {
-            if (generation % 10 == 0) {
-                System.out.println("generation " + generation
-                    + " done @ " + System.currentTimeMillis());
-            }
-            ++generation;
-        } else {
-            repaint ();
-        }
-            // tell graphic system that LifeBoard needs to be re-rendered
+
+    }
+    public void updateBoard() throws Coordinator.KilledException{
+    	c.hesitate();
+	    T = B;  B = A;  A = T;
+	    if (headless) {
+	    	if (generation % 10 == 0) {
+	    		System.out.println("generation " + generation
+		    		  + " done @ " + System.currentTimeMillis());
+	    	}
+		    ++generation;
+		} else {
+		      repaint ();
+		}
+
     }
 
     // The following method is called automatically by the graphics
@@ -306,6 +386,8 @@ class LifeBoard extends JPanel {
 class UI extends JPanel {
     private final Coordinator c;
     private final LifeBoard lb;
+    
+    public ArrayList<Worker> t_list;
 
     private final JRootPane root;
     private static final int externalBorder = 6;
@@ -315,6 +397,14 @@ class UI extends JPanel {
     private static final int paused = 2;
 
     private int state = stopped;
+    
+    public LifeBoard getLifeBoard() // a getter method for lb
+    {
+    	return lb;
+    }
+    public Coordinator getCoordinator() { // a getter method for c
+    	return c;
+    }
 
     // Constructor
     //
@@ -351,7 +441,7 @@ class UI extends JPanel {
                 if (state == stopped) {
                     state = running;
                     root.setDefaultButton(pauseButton);
-                    onRunClick();
+                    onRunClick(t_list);
                 } else if (state == paused) {
                     state = running;
                     root.setDefaultButton(pauseButton);
@@ -410,8 +500,9 @@ class UI extends JPanel {
         root.setDefaultButton(runButton);
     }
 
-    public void onRunClick() {
-      Worker w = new Worker(lb, c, this);
-      w.start();
+    public void onRunClick(ArrayList<Worker> t_l) {
+    	for(int i=0; i<t_l.size(); i++) {
+    		t_l.get(i).start();
+    	}
     }
 }

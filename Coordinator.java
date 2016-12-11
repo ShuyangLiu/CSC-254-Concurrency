@@ -25,7 +25,7 @@ class Coordinator {
 
     // A thread terminates early by throwing itself a KilledException.
     //
-    public class KilledException extends Throwable {}
+    public class KilledException extends Throwable {private static final long serialVersionUID = 1L;}
 
     public synchronized void register() {
         numThreads++;
