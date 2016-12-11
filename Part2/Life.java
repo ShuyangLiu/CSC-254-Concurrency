@@ -123,20 +123,17 @@ class Delegator implements Runnable {
     public void run() {
       try {
         c.register();
-        int counter = 0;
-        System.out.println("*****Starting counter*****");
           while(true) {
               runOneGeneration();
-              counter++;
-              System.out.println("counter == " + counter);
           }
-      } finally {
+      } catch (Coordinator.KilledException e) {}
+      finally {
         c.unregister();
       }
 
     }
 
-    public void runOneGeneration() {
+    public void runOneGeneration() throws Coordinator.KilledException {
         List<Callable<Integer>> tasks = generateTasks();
         try {
           pool.invokeAll(tasks);
@@ -146,7 +143,7 @@ class Delegator implements Runnable {
 
     // TODO: actually create list of tasks.
     public List<Callable<Integer>> generateTasks() {
-      // TODO: complete stub.
+
       List<Callable<Integer>> tasks = new ArrayList<>();
       for(int i = 0; i < lb.n; i++) {
           tasks.add(new Worker(lb, c, u, i));
@@ -272,7 +269,8 @@ class LifeBoard extends JPanel {
 
     }
 
-    public void updateBoard() {
+    public void updateBoard() throws Coordinator.KilledException {
+      c.hesitate();
       T = B;  B = A;  A = T;
       if (headless) {
           if (generation % 10 == 0) {
@@ -282,7 +280,6 @@ class LifeBoard extends JPanel {
           ++generation;
       } else {
           repaint ();
-          System.out.println("\tRepainting...");
       }
           // tell graphic system that LifeBoard needs to be re-rendered
     }
