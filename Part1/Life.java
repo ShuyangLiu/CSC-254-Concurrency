@@ -174,7 +174,8 @@ class Worker extends Thread {
                 synchronized (lb) {
                 	if(Life.counter == 0) {
                 		Life.start_time = System.currentTimeMillis();
-                		System.out.println(Color_Code.GREEN + "starting time: "+Life.start_time+Color_Code.RESET);
+                        System.out.println(Color_Code.wrap("Starting Time: "+Life.start_time,210));
+                		//System.out.println(Color_Code.GREEN + "starting time: "+Life.start_time+Color_Code.RESET);
                 	}
                 	Life.counter= Life.counter+1;
                 	//System.out.println(Life.counter+" from "+this.getName());
@@ -190,9 +191,10 @@ class Worker extends Thread {
 	                	//System.out.println(Color_Code.CYAN + this.getName() + "is going to notify other threads" +Color_Code.RESET);
 	                	//If this is the last thread
 	                	Life.end_time = System.currentTimeMillis();
-	                	System.out.println(Color_Code.GREEN + "ending time: "+Life.end_time+Color_Code.RESET);
-	                	System.out.println(Color_Code.RED+"Time Interval of this generation: "+(Life.end_time - Life.start_time)+Color_Code.RESET);
-	                	Life.counter = 0; // reset counter to zero
+                        System.out.println(Color_Code.wrap(Color_Code.bold("Time Interval of generation: "+"["+lb.getGeneration()+"] "+(Life.end_time - Life.start_time)), 225));
+	                	System.out.println(Color_Code.wrap("Ending Time: "+Life.end_time, 159));
+                        System.out.println();
+                        Life.counter = 0; // reset counter to zero
 	                	lb.updateBoard(); // update the board
 	                	lb.notifyAll(); // notify all the threads that are waiting to proceed
 	                }
@@ -249,6 +251,10 @@ class LifeBoard extends JPanel {
             // tell graphic system that LifeBoard needs to be re-rendered
     }
 
+    public int getGeneration() {
+        return generation;
+    }
+
     // This is the function that actually plays (one full generation of)
     // the game.  It is called by the run() method of Thread class
     // Worker.  You'll want to replace this with something that does
@@ -299,6 +305,7 @@ class LifeBoard extends JPanel {
 		    ++generation;
 		} else {
 		      repaint ();
+              ++generation;
 		}
 
     }
