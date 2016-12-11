@@ -90,7 +90,7 @@ public class Life {
         }
     }
 
-    private static void initializeWorkers() {
+    public static void initializeWorkers() {
     	int begin = 0;
         int end = (int) (n/numThreads);
         
@@ -238,6 +238,10 @@ class LifeBoard extends JPanel {
     private final Coordinator c;
     private final UI u;
     private final int n;  // number of cells on a side
+    
+    public int getN() {
+    	return n;
+    }
 
     // Called by the UI when it wants to start over.
     //
@@ -394,7 +398,7 @@ class UI extends JPanel {
     private final Coordinator c;
     private final LifeBoard lb;
     
-    public ArrayList<Worker> t_list;
+    public volatile ArrayList<Worker> t_list;
 
     private final JRootPane root;
     private static final int externalBorder = 6;
@@ -448,6 +452,23 @@ class UI extends JPanel {
                 if (state == stopped) {
                     state = running;
                     root.setDefaultButton(pauseButton);
+                    
+                    // reset t_list
+                    t_list = new ArrayList<>();
+                    int s = 0;
+                    int r = (int) (lb.getN()/Life.numThreads);
+                    for(int i=0; i<Life.numThreads-1; i++) {
+                    	Worker w = new Worker(lb, c, u); // making a new thread
+                    	w.setTask(s, r);
+                    	t_list.add(w); // add to worker_list to be ready to use
+                    	s += (int) (lb.getN()/Life.numThreads);
+                    	r += (int) (lb.getN()/Life.numThreads);
+                    }
+                    //The last one in case n is not divisible by numThreads
+                    Worker w = new Worker(lb, c, u);
+                    w.setTask(s, r);
+                    t_list.add(w);
+                    
                     onRunClick(t_list);
                 } else if (state == paused) {
                     state = running;
@@ -508,6 +529,8 @@ class UI extends JPanel {
     }
 
     public void onRunClick(ArrayList<Worker> t_l) {
+    	System.out.println(Color_Code.wrap(t_l.size()+"", Color_Code.GREEN));
+    	
     	for(int i=0; i<t_l.size(); i++) {
     		t_l.get(i).start();
     	}
