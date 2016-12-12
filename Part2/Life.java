@@ -136,6 +136,7 @@ class Delegator implements Runnable {
         u = U;
         nt = numThreads;
         k = numTasks;
+	System.out.println("\t NumThreads: " + nt);
         pool = Executors.newFixedThreadPool(nt);
     }
 

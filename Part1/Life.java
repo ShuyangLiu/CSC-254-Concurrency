@@ -172,8 +172,8 @@ class Worker extends Thread {
                 //Life.counter= Life.counter+1;
                 synchronized (lb) {
                 	if(Life.counter == 0) {
-                		Life.start_time = System.currentTimeMillis();
-                        System.out.println(Color_Code.wrap("Starting Time: "+Life.start_time,210));
+                		Life.start_time = System.nanoTime();
+                        //System.out.println(Color_Code.wrap("Starting Time: "+Life.start_time,210));
                 		//System.out.println(Color_Code.GREEN + "starting time: "+Life.start_time+Color_Code.RESET);
                 	}
                 	Life.counter= Life.counter+1;
@@ -189,10 +189,12 @@ class Worker extends Thread {
 	                } else {
 	                	//System.out.println(Color_Code.CYAN + this.getName() + "is going to notify other threads" +Color_Code.RESET);
 	                	//If this is the last thread
-	                	Life.end_time = System.currentTimeMillis();
-                        System.out.println(Color_Code.wrap(Color_Code.bold("Time Interval of generation: "+"["+lb.getGeneration()+"] "+(Life.end_time - Life.start_time)), 225));
-	                	System.out.println(Color_Code.wrap("Ending Time: "+Life.end_time, 159));
-                        System.out.println();
+	                //	Life.end_time = System.nanoTime();
+                       // System.out.println(Color_Code.wrap(Color_Code.bold("Time Interval of generation: "+"["+lb.getGeneration()+"] "+(Life.end_time - Life.start_time)), 225));
+	                //	System.out.println(Color_Code.wrap("Ending Time: "+Life.end_time, 159));
+                        //System.out.println();
+                        //System.out.println(Color_Code.wrap("" + (Life.end_time - Life.start_time), 159));
+                       // System.out.print(Life.end_time - Life.start_time + ", ");
                         Life.counter = 0; // reset counter to zero
 	                	lb.updateBoard(); // update the board
 	                	lb.notifyAll(); // notify all the threads that are waiting to proceed
@@ -301,9 +303,18 @@ class LifeBoard extends JPanel {
     	c.hesitate();
 	    T = B;  B = A;  A = T;
 	    if (headless) {
+		if (generation == 0) {
+			System.out.print(System.nanoTime() + ", ");
+		}
+		if (generation == 100) {
+			System.out.print(System.nanoTime());
+		}
+		long time = Life.end_time;
+		Life.end_time = System.nanoTime();
+//		System.out.print(Life.end_time - time + ", ");
 	    	if (generation % 10 == 0) {
-	    		System.out.println("generation " + generation
-		    		  + " done @ " + System.currentTimeMillis());
+	    		//System.out.println("generation " + generation
+		    	//	  + " done @ " + System.currentTimeMillis());
 	    	}
 		    ++generation;
 		} else {
