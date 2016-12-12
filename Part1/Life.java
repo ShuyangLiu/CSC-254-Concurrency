@@ -528,9 +528,7 @@ class UI extends JPanel {
         root.setDefaultButton(runButton);
     }
 
-    public void onRunClick(ArrayList<Worker> t_l) {
-    	System.out.println(Color_Code.wrap(t_l.size()+"", Color_Code.GREEN));
-    	
+    public void onRunClick(ArrayList<Worker> t_l) {   	
     	for(int i=0; i<t_l.size(); i++) {
     		t_l.get(i).start();
     	}
