@@ -2,7 +2,7 @@
 
 rm output.txt
 
-for i in {1..10}
+for i in {1..32}
 do
   #printf "\n%d\n" $i >> output.txt
   #echo $i >> output.txt

@@ -91,21 +91,22 @@ public class Life {
     }
 
     public static void initializeWorkers() {
-    	int begin = 0;
-        int end = (int) (n/numThreads);
+    	double begin = 0;
+	double interval = (n * 1.0 /numThreads);
+        double end = interval;
 
         worker_list = new ArrayList<>();
-        for(int i=0; i<numThreads-1; i++) {
+        for(int i=0; i<numThreads; i++) {
+		//System.out.println("[DEBUG] initializWorker::range: "+begin+", "+end);
         	Worker w = new Worker(u.getLifeBoard(), u.getCoordinator(), u); // making a new thread
-        	w.setTask(begin, end);
+		if(end >= n-1) {
+			end = n;
+		}
+        	w.setTask((int)begin, (int)end);
         	worker_list.add(w); // add to worker_list to be ready to use
-        	begin += n/numThreads;
-        	end += n/numThreads;
+        	begin += interval;
+        	end += interval;
         }
-        //The last one in case n is not divisible by numThreads
-        Worker w = new Worker(u.getLifeBoard(), u.getCoordinator(), u);
-        w.setTask(begin, n);
-        worker_list.add(w);
     }
     public static void main(String[] args)
     {
@@ -189,7 +190,7 @@ class Worker extends Thread {
 	                } else {
 	                	//System.out.println(Color_Code.CYAN + this.getName() + "is going to notify other threads" +Color_Code.RESET);
 	                	//If this is the last thread
-	                //	Life.end_time = System.nanoTime();
+	                	Life.end_time = System.nanoTime();
                        // System.out.println(Color_Code.wrap(Color_Code.bold("Time Interval of generation: "+"["+lb.getGeneration()+"] "+(Life.end_time - Life.start_time)), 225));
 	                //	System.out.println(Color_Code.wrap("Ending Time: "+Life.end_time, 159));
                         //System.out.println();
@@ -269,6 +270,7 @@ class LifeBoard extends JPanel {
     // they finish, so the Coordinator can manage them.
     //
     public void doGeneration(int start, int end) throws Coordinator.KilledException {
+	   // System.out.println("[DEBUG]doGeneration::range: "+start+", "+end);
         for (int i = start; i < end; i++) {
             for (int j = 0; j < n; j++) {
 
@@ -304,17 +306,16 @@ class LifeBoard extends JPanel {
 	    T = B;  B = A;  A = T;
 	    if (headless) {
 		if (generation == 0) {
-			System.out.print(System.nanoTime() + ", ");
+		//	System.out.print(System.nanoTime() + ", ");
 		}
 		if (generation == 100) {
-			System.out.print(System.nanoTime());
+		//	System.out.print(System.nanoTime());
 		}
 		long time = Life.end_time;
 		Life.end_time = System.nanoTime();
 //		System.out.print(Life.end_time - time + ", ");
 	    	if (generation % 10 == 0) {
-	    		//System.out.println("generation " + generation
-		    	//	  + " done @ " + System.currentTimeMillis());
+	    		System.out.println(System.currentTimeMillis());
 	    	}
 		    ++generation;
 		} else {
@@ -465,19 +466,19 @@ class UI extends JPanel {
 
                     // reset t_list
                     t_list = new ArrayList<>();
-                    int s = 0;
-                    int r = (int) (lb.getN()/Life.numThreads);
-                    for(int i=0; i<Life.numThreads-1; i++) {
+                    double s = 0;
+                    double r =  ((lb.getN()*1.0)/(Life.numThreads*1.0));
+                    for(int i=0; i<Life.numThreads; i++) {
+			//System.out.println("[DEBUG]range: "+s+", "+r);
                     	Worker w = new Worker(lb, c, u); // making a new thread
-                    	w.setTask(s, r);
+			if(r >= lb.getN()-1){
+				r = lb.getN();
+			}	
+                    	w.setTask((int)s, (int)r);
                     	t_list.add(w); // add to worker_list to be ready to use
-                    	s += (int) (lb.getN()/Life.numThreads);
-                    	r += (int) (lb.getN()/Life.numThreads);
+                    	s += (lb.getN()*1.0)/(1.0*Life.numThreads);
+                    	r +=  (lb.getN()*1.0)/(1.0*Life.numThreads);
                     }
-                    //The last one in case n is not divisible by numThreads
-                    Worker w = new Worker(lb, c, u);
-                    w.setTask(s, r);
-                    t_list.add(w);
 
                     onRunClick(t_list);
                 } else if (state == paused) {
