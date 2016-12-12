@@ -169,10 +169,13 @@ class Delegator implements Runnable {
       int begin = 0;
       int end = lb.n / numTasks;
       List<Callable<Integer>> tasks = new ArrayList<>();
-      for(int i = 0; i < lb.n; i++) {
+      for(int i = 0; i < numTasks; i++) {
           tasks.add(new Worker(lb, c, u, new Task(begin, end)));
           begin += lb.n / numTasks;
           end += lb.n / numTasks;
+	  if(i == numTasks - 1) {
+		end = lb.n - 1;
+	 }
       }
       return tasks;
     }
