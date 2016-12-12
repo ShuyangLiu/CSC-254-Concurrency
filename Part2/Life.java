@@ -156,26 +156,27 @@ class Delegator implements Runnable {
     public void runOneGeneration() throws Coordinator.KilledException {
         List<Callable<Integer>> tasks = generateTasks(k);
         try {
-          long start_time = System.currentTimeMillis();
+          //long start_time = System.currentTimeMillis();
           pool.invokeAll(tasks);
-          long end_time = System.currentTimeMillis();
-          System.out.print((end_time - start_time) + ", ");
+          //long end_time = System.currentTimeMillis();
+          //System.out.print((end_time - start_time) + ", ");
           lb.updateBoard();
         } catch (InterruptedException e) { System.err.println("Exception :("); }
     }
 
     // TODO: actually create list of tasks.
     public List<Callable<Integer>> generateTasks(int numTasks) {
-      int begin = 0;
-      int end = lb.n / numTasks;
+      double begin = 0;
+      double interval = (lb.n*1.0) /( numTasks*1.0);
+      double end = interval;
       List<Callable<Integer>> tasks = new ArrayList<>();
       for(int i = 0; i < numTasks; i++) {
-          tasks.add(new Worker(lb, c, u, new Task(begin, end)));
-          begin += lb.n / numTasks;
-          end += lb.n / numTasks;
-	  if(i == numTasks - 1) {
-		end = lb.n - 1;
+	  if(end >= lb.n-1) {
+		end = lb.n*1.0;
 	 }
+          tasks.add(new Worker(lb, c, u, new Task((int) begin, (int) end)));
+          begin += interval;
+          end += interval;
       }
       return tasks;
     }
@@ -314,8 +315,7 @@ class LifeBoard extends JPanel {
       T = B;  B = A;  A = T;
       if (headless) {
           if (generation % 10 == 0) {
-              System.out.println("generation " + generation
-                  + " done @ " + System.currentTimeMillis());
+              System.out.println(System.currentTimeMillis());
           }
           ++generation;
       } else {
