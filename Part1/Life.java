@@ -17,26 +17,26 @@ import java.lang.Thread.*;
 import java.util.ArrayList;
 
 public class Life {
-	
+
 	public static volatile long start_time;
 	public static volatile long end_time;
-	
+
     private static final int n = 100;    // number of cells on a side
     private static int pauseIterations = -(500000000/n/n);
         // nanoseconds per dot for a delay of about a half a second
     public static long numThreads = 1;
-    
+
     private static boolean headless = false;    // don't create GUI
     private static boolean glider = false;      // create initial glider
 
     private static UI u; // store the UI in Life
-    
+
     public static volatile int counter = 0; // Thread counter
-    
+
     private void buildUI(RootPaneContainer pane) {
         u = new UI(n, pane, pauseIterations, headless, glider);
     }
-    
+
     private static ArrayList<Worker> worker_list;
 
     // Print error message and exit.
@@ -93,7 +93,7 @@ public class Life {
     public static void initializeWorkers() {
     	int begin = 0;
         int end = (int) (n/numThreads);
-        
+
         worker_list = new ArrayList<>();
         for(int i=0; i<numThreads-1; i++) {
         	Worker w = new Worker(u.getLifeBoard(), u.getCoordinator(), u); // making a new thread
@@ -107,10 +107,9 @@ public class Life {
         w.setTask(begin, n);
         worker_list.add(w);
     }
-    public static void main(String[] args) 
+    public static void main(String[] args)
     {
         parseArgs(args);
-        
         Life me = new Life();
 
         JFrame f = new JFrame("Life");
@@ -122,7 +121,7 @@ public class Life {
         me.buildUI(f);
         initializeWorkers();
         u.t_list = worker_list; // give a reference to the thread list
-        
+
         if (headless) {
             u.onRunClick(worker_list);
         } else {
@@ -148,7 +147,7 @@ class Worker extends Thread {
     private final LifeBoard lb;
     private final Coordinator c;
     private final UI u;
-    
+
     private Task t;
 
     // The run() method of a Java Thread is never invoked directly by
@@ -214,7 +213,7 @@ class Worker extends Thread {
         c = C;
         u = U;
     }
-    
+
     public void setTask(int s, int e) {
     	this.t = new Task(s,e);
     }
@@ -238,7 +237,7 @@ class LifeBoard extends JPanel {
     private final Coordinator c;
     private final UI u;
     private final int n;  // number of cells on a side
-    
+
     public int getN() {
     	return n;
     }
@@ -397,7 +396,7 @@ class LifeBoard extends JPanel {
 class UI extends JPanel {
     private final Coordinator c;
     private final LifeBoard lb;
-    
+
     public volatile ArrayList<Worker> t_list;
 
     private final JRootPane root;
@@ -408,7 +407,7 @@ class UI extends JPanel {
     private static final int paused = 2;
 
     private int state = stopped;
-    
+
     public LifeBoard getLifeBoard() // a getter method for lb
     {
     	return lb;
@@ -452,7 +451,7 @@ class UI extends JPanel {
                 if (state == stopped) {
                     state = running;
                     root.setDefaultButton(pauseButton);
-                    
+
                     // reset t_list
                     t_list = new ArrayList<>();
                     int s = 0;
@@ -468,7 +467,7 @@ class UI extends JPanel {
                     Worker w = new Worker(lb, c, u);
                     w.setTask(s, r);
                     t_list.add(w);
-                    
+
                     onRunClick(t_list);
                 } else if (state == paused) {
                     state = running;
@@ -528,7 +527,7 @@ class UI extends JPanel {
         root.setDefaultButton(runButton);
     }
 
-    public void onRunClick(ArrayList<Worker> t_l) {   	
+    public void onRunClick(ArrayList<Worker> t_l) {
     	for(int i=0; i<t_l.size(); i++) {
     		t_l.get(i).start();
     	}
