@@ -97,7 +97,6 @@ public class Life {
 
         worker_list = new ArrayList<>();
         for(int i=0; i<numThreads; i++) {
-		//System.out.println("[DEBUG] initializWorker::range: "+begin+", "+end);
         	Worker w = new Worker(u.getLifeBoard(), u.getCoordinator(), u); // making a new thread
 		if(end >= n-1) {
 			end = n;
@@ -168,34 +167,18 @@ class Worker extends Thread {
         try {
             c.register();
             while (true) {
-            	//System.out.println(this.getName()+" in the while true loop");
                 lb.doGeneration(t.start_index, t.end_index);
-                //Life.counter= Life.counter+1;
                 synchronized (lb) {
-                	if(Life.counter == 0) {
-                		Life.start_time = System.nanoTime();
-                        //System.out.println(Color_Code.wrap("Starting Time: "+Life.start_time,210));
-                		//System.out.println(Color_Code.GREEN + "starting time: "+Life.start_time+Color_Code.RESET);
-                	}
                 	Life.counter= Life.counter+1;
-                	//System.out.println(Life.counter+" from "+this.getName());
 	                if(Life.counter < Life.numThreads) {
 			                try {
-			                	//System.out.println(Color_Code.GREEN + this.getName() + "is going to wait" +Color_Code.RESET);
 			                	lb.wait();// wait until other threads are done with current generation
-			                	//System.out.println(Color_Code.PURPLE + this.getName() + "just waked up" +Color_Code.RESET);
 			                }catch (InterruptedException e) {
 			                	e.printStackTrace();
 			                }
 	                } else {
-	                	//System.out.println(Color_Code.CYAN + this.getName() + "is going to notify other threads" +Color_Code.RESET);
 	                	//If this is the last thread
 	                	Life.end_time = System.nanoTime();
-                       // System.out.println(Color_Code.wrap(Color_Code.bold("Time Interval of generation: "+"["+lb.getGeneration()+"] "+(Life.end_time - Life.start_time)), 225));
-	                //	System.out.println(Color_Code.wrap("Ending Time: "+Life.end_time, 159));
-                        //System.out.println();
-                        //System.out.println(Color_Code.wrap("" + (Life.end_time - Life.start_time), 159));
-                       // System.out.print(Life.end_time - Life.start_time + ", ");
                         Life.counter = 0; // reset counter to zero
 	                	lb.updateBoard(); // update the board
 	                	lb.notifyAll(); // notify all the threads that are waiting to proceed
@@ -270,7 +253,6 @@ class LifeBoard extends JPanel {
     // they finish, so the Coordinator can manage them.
     //
     public void doGeneration(int start, int end) throws Coordinator.KilledException {
-	   // System.out.println("[DEBUG]doGeneration::range: "+start+", "+end);
         for (int i = start; i < end; i++) {
             for (int j = 0; j < n; j++) {
 
@@ -302,20 +284,11 @@ class LifeBoard extends JPanel {
 
     }
     public void updateBoard() throws Coordinator.KilledException{
-    	c.hesitate();
+    	    c.hesitate();
 	    T = B;  B = A;  A = T;
 	    if (headless) {
-		if (generation == 0) {
-		//	System.out.print(System.nanoTime() + ", ");
-		}
-		if (generation == 100) {
-		//	System.out.print(System.nanoTime());
-		}
-		long time = Life.end_time;
-		Life.end_time = System.nanoTime();
-//		System.out.print(Life.end_time - time + ", ");
 	    	if (generation % 10 == 0) {
-	    		System.out.println(System.currentTimeMillis());
+	    		System.out.print(System.currentTimeMillis() + ", ");
 	    	}
 		    ++generation;
 		} else {
@@ -469,7 +442,6 @@ class UI extends JPanel {
                     double s = 0;
                     double r =  ((lb.getN()*1.0)/(Life.numThreads*1.0));
                     for(int i=0; i<Life.numThreads; i++) {
-			//System.out.println("[DEBUG]range: "+s+", "+r);
                     	Worker w = new Worker(lb, c, u); // making a new thread
 			if(r >= lb.getN()-1){
 				r = lb.getN();
