@@ -13,6 +13,8 @@
 // visible on the screen, and to notify all running threads when the user
 // wants them to die.  DO NOT MODIFY THIS CLASS.
 //
+//import javax.swing.*;
+
 class Coordinator {
     private boolean open = true;
         // set to false temporarily when threads are supposed to die.
@@ -82,6 +84,8 @@ class Coordinator {
     public synchronized void stop() {
         running = false;
         open = false;
+        // System.out.println(Color_Code.wrap("[DEBUG] updateBoard: "+SwingUtilities.isEventDispatchThread(),225));
+
         notifyAll();
         while (numThreads > 0) {
             try {

@@ -168,21 +168,21 @@ class Worker extends Thread {
             c.register();
             while (true) {
                 lb.doGeneration(t.start_index, t.end_index);
-                synchronized (lb) {
+                synchronized (c) {
                 	Life.counter= Life.counter+1;
 	                if(Life.counter < Life.numThreads) {
 			                try {
-			                	lb.wait();// wait until other threads are done with current generation
+			                	c.wait();// wait until other threads are done with current generation
 			                }catch (InterruptedException e) {
 			                	e.printStackTrace();
 			                }
 	                } else {
 	                	//If this is the last thread
-	                	Life.end_time = System.nanoTime();
+	                	//Life.end_time = System.nanoTime();
                         Life.counter = 0; // reset counter to zero
 	                	lb.updateBoard(); // update the board
                         //pause if it is in step mode
-	                	lb.notifyAll(); // notify all the threads that are waiting to proceed
+	                	c.notifyAll(); // notify all the threads that are waiting to proceed
                         if(u.step_switch == true) {
                             u.pauseButton.doClick();
                         }
@@ -296,8 +296,9 @@ class LifeBoard extends JPanel {
 	    	}
 		    ++generation;
 		} else {
-		      repaint ();
-              ++generation;
+            //System.out.println(Color_Code.wrap("[DEBUG] updateBoard: "+SwingUtilities.isEventDispatchThread(),225));
+		    repaint ();
+            ++generation;
 		}
 
     }
@@ -500,6 +501,7 @@ class UI extends JPanel {
         });
         stopButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
+                //System.out.println(Color_Code.wrap("[DEBUG] updateBoard: "+SwingUtilities.isEventDispatchThread(),225));
                 state = stopped;
                 c.stop();
                 root.setDefaultButton(runButton);
