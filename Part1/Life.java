@@ -181,7 +181,11 @@ class Worker extends Thread {
 	                	Life.end_time = System.nanoTime();
                         Life.counter = 0; // reset counter to zero
 	                	lb.updateBoard(); // update the board
+                        //pause if it is in step mode
 	                	lb.notifyAll(); // notify all the threads that are waiting to proceed
+                        if(u.step_switch == true) {
+                            u.pauseButton.doClick();
+                        }
 	                }
                 }
             }
@@ -393,6 +397,16 @@ class UI extends JPanel {
 
     private int state = stopped;
 
+    public boolean step_switch = false;
+
+    public final JButton runButton ;
+    public final JButton pauseButton ;
+    public final JButton stopButton ;
+    public final JButton clearButton ;
+    public final JButton quitButton ;
+    public final JButton stepButton ;
+
+
     public LifeBoard getLifeBoard() // a getter method for lb
     {
     	return lb;
@@ -411,11 +425,12 @@ class UI extends JPanel {
 
         final JPanel b = new JPanel();   // button panel
 
-        final JButton runButton = new JButton("Run");
-        final JButton pauseButton = new JButton("Pause");
-        final JButton stopButton = new JButton("Stop");
-        final JButton clearButton = new JButton("Clear");
-        final JButton quitButton = new JButton("Quit");
+        runButton = new JButton("Run");
+        pauseButton = new JButton("Pause");
+        stopButton = new JButton("Stop");
+        clearButton = new JButton("Clear");
+        quitButton = new JButton("Quit");
+        stepButton = new JButton("Step");
 
         // Note that the addListener calls below pass an annonymous
         // inner class as argument.
@@ -431,6 +446,7 @@ class UI extends JPanel {
             public void mousePressed(MouseEvent e) { }
             public void mouseReleased(MouseEvent e) { }
         });
+
         runButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 if (state == stopped) {
@@ -443,9 +459,9 @@ class UI extends JPanel {
                     double r =  ((lb.getN()*1.0)/(Life.numThreads*1.0));
                     for(int i=0; i<Life.numThreads; i++) {
                     	Worker w = new Worker(lb, c, u); // making a new thread
-			if(r >= lb.getN()-1){
-				r = lb.getN();
-			}	
+            			if(r >= lb.getN()-1){
+            				r = lb.getN();
+            			}	
                     	w.setTask((int)s, (int)r);
                     	t_list.add(w); // add to worker_list to be ready to use
                     	s += (lb.getN()*1.0)/(1.0*Life.numThreads);
@@ -457,6 +473,19 @@ class UI extends JPanel {
                     state = running;
                     root.setDefaultButton(pauseButton);
                     c.toggle();
+                }
+            }
+        });
+
+        stepButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                step_switch = true;
+                if (state == running) {
+                    pauseButton.doClick();
+                } else if (state == paused) {
+                    runButton.doClick();
+                } else if (state == stopped) {
+                    runButton.doClick();
                 }
             }
         });
@@ -497,6 +526,7 @@ class UI extends JPanel {
         b.add(stopButton);
         b.add(clearButton);
         b.add(quitButton);
+        b.add(stepButton);
 
         // put the LifeBoard canvas and the button panel into the UI:
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
