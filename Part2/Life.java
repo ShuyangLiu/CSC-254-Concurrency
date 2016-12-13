@@ -29,7 +29,7 @@ public class Life {
     private static int numThreads = 1;
         // I currently don't do anything with this variable.
         // You should.
-    private static int numTasks = 1;
+    private static int numTasks = 10;
     private static boolean headless = false;    // don't create GUI
     private static boolean glider = false;      // create initial glider
 
@@ -136,7 +136,6 @@ class Delegator implements Runnable {
         u = U;
         nt = numThreads;
         k = numTasks;
-	System.out.println("\t NumThreads: " + nt);
         pool = Executors.newFixedThreadPool(nt);
     }
 
@@ -156,15 +155,11 @@ class Delegator implements Runnable {
     public void runOneGeneration() throws Coordinator.KilledException {
         List<Callable<Integer>> tasks = generateTasks(k);
         try {
-          //long start_time = System.currentTimeMillis();
           pool.invokeAll(tasks);
-          //long end_time = System.currentTimeMillis();
-          //System.out.print((end_time - start_time) + ", ");
           lb.updateBoard();
         } catch (InterruptedException e) { System.err.println("Exception :("); }
     }
 
-    // TODO: actually create list of tasks.
     public List<Callable<Integer>> generateTasks(int numTasks) {
       double begin = 0;
       double interval = (lb.n*1.0) /( numTasks*1.0);
@@ -253,6 +248,8 @@ class LifeBoard extends JPanel {
     private int T[][];  // temporary pointer
     private int generation = 0;
 
+    private static long start_time;
+
     // following fields are set by constructor:
     private final Coordinator c;
     private final UI u;
@@ -314,9 +311,14 @@ class LifeBoard extends JPanel {
       c.hesitate();
       T = B;  B = A;  A = T;
       if (headless) {
+	  if (generation == 0) { start_time = System.currentTimeMillis(); }
           if (generation % 10 == 0) {
-              System.out.println(System.currentTimeMillis());
+              System.out.print(System.currentTimeMillis() + ", ");
           }
+	  if (generation == 388) {
+	      System.out.print("Covered board in: " + (System.currentTimeMillis() - start_time));
+	      System.exit(0);
+	  }
           ++generation;
       } else {
           repaint ();
@@ -519,7 +521,5 @@ class UI extends JPanel {
         Delegator d = new Delegator(lb, c, this, numThreads, numTasks);
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(d);
-
-      //d.runAllGenerations();
     }
 }
