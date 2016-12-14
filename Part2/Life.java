@@ -547,6 +547,19 @@ class LifeBoard extends JPanel {
 	    }
 	}
     }
+
+    // Returns a representation of the board in which each point represents an occupied spot.
+    public List<Point> getPoints() {
+	List<Point> points = new ArrayList<>();
+	for(int i = 0; i < n; i++) {
+	    for(int j = 0; j < n; j++) {
+		if (B[i][j] == 1) {
+		    points.add(new Point(j, i));
+		}
+  	    }
+	}
+	return points;
+    }
 }
 
 // Class UI is the user interface.  It displays a LifeBoard canvas above
@@ -564,6 +577,8 @@ class UI extends JPanel {
  
     public boolean step_switch = false;
 
+    private final String outputFile = "output_config.txt";
+
     private static final int stopped = 0;
     private static final int running = 1;
     private static final int paused = 2;
@@ -579,7 +594,8 @@ class UI extends JPanel {
     final JButton stopButton = new JButton("Stop");
     final JButton clearButton = new JButton("Clear");
     final JButton quitButton = new JButton("Quit");
-    final JButton stepButton = new JButton("Step");// Added a button that allows the user to proceed in the game by one generation.
+    final JButton stepButton = new JButton("Step"); // Added a button that allows the user to proceed in the game by one generation.
+    final JButton configButton = new JButton("Get Configuration"); // Added a button that allows the user to get the current configuration of the board, so long as the game is paused or stopped.
 
     // Constructor
     //
@@ -665,6 +681,20 @@ class UI extends JPanel {
 
             }
         });
+	// Thus buggon allows the user to get the current configuration of the board, so long
+	// as the game is currently paused or stopped. It will create a file called output_config.txt
+	// and store the configuration in there.
+	configButton.addActionListener(new ActionListener() {
+	    public void actionPerformed(ActionEvent e) {
+		if (state == running) {
+		    System.err.println("Game must be paused or stopped in order to get configuration.");
+		} else if (state == paused || state == stopped) {
+		    try (BufferedWriter bw = new BufferedWriter(new FileWriter(outputFile))) {
+			bw.write(buildConfigString(pauseIterations));
+		    } catch (IOException ex) { System.err.println("Error: could not create config file."); }
+		}
+	    }
+	});
 
         // put the buttons into the button panel:
         b.setLayout(new FlowLayout());
@@ -674,6 +704,7 @@ class UI extends JPanel {
         b.add(clearButton);
         b.add(quitButton);
 	b.add(stepButton);
+	b.add(configButton);
 
         // put the LifeBoard canvas and the button panel into the UI:
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -686,6 +717,25 @@ class UI extends JPanel {
         pane.getContentPane().add(this);
         root = getRootPane();
         root.setDefaultButton(runButton);
+    }
+
+    // Builds the string that contains all of the information to be put in the config file.
+    public String buildConfigString(int pauseIterations) {
+	StringBuilder content = new StringBuilder();
+	content.append("t:");
+	content.append(numThreads);
+	content.append("\n");
+	content.append("s:");
+	content.append(pauseIterations);
+	content.append("\n");
+	content.append("shape:");
+	List<Point> points = lb.getPoints();
+	for(Point p : points) {
+	    content.append(p);
+	    content.append(";");
+	}
+	content.append("\n");
+	return content.toString();
     }
 
     // Everytime onRunClick is called, it creates a new thread. This new thread creates the other 
