@@ -8,6 +8,8 @@
 
     Michael L. Scott, November 2016, based on earlier versions from
     1998, 2007, and 2011.
+
+    Edited by Shuyang Liu and Nina Bose in 2016
  */
 
 import java.awt.*;          // older of the two standard Java GUIs
@@ -26,11 +28,13 @@ public class Life {
     private static int pauseIterations = -(500000000/n/n);
         // nanoseconds per dot for a delay of about a half a second
     private static int numThreads = 1;
-    private static int numTasks = 10;
+    private static int numTasks = 10; 		// default number of tasks is 10.
     private static boolean headless = false;    // don't create GUI
     private static boolean glider = false;      // create initial glider
-    private static List<Point> shape = null;
+    private static List<Point> shape = null;	// used to represent a custom shape specified by the user in a config file.
 
+
+    // Helper method to create the UI. 
     private UI buildUI(RootPaneContainer pane, int numTasks, List<Point> shape) {
         return new UI(n, pane, pauseIterations, headless, glider, numThreads, numTasks, shape);
     }
@@ -46,13 +50,18 @@ public class Life {
     //
     private static void parseArgs(String[] args) {
         for (int i = 0; i < args.length; i++) {
-	    if (args[i].equals("-c")) {
+  	   // Fill in information from config file. Values in this file are overridden 
+	   // by parameters specified in the command line. 
+           if (args[i].equals("-c")) {
 		if (++i >= args.length) {
 		   die("Missing config file.\n");
 		} else {
 		   Parser p = new Parser();
 		   Configuration config = p.parse(args[i]);
  		   if (config.isPresent()) {
+		       // Check to see whether the value in question has been specified in 
+		       // the config file and has not been specified in command line arguments.
+		       // If so, then store the value. 
 			if (config.numThreads != -1 && numThreads == 1) {
 				numThreads = config.numThreads;
 			} 
@@ -94,7 +103,7 @@ public class Life {
                                           args[i]));
                     }
                 }
-            } else if (args[i].equals("-k")) {
+            } else if (args[i].equals("-k")) { // The user may specify the number of tasks to use in the range (0, 100].
                 if (++i >= args.length) {
                     die("Missing number of tasks\n");
                 } else {
@@ -102,7 +111,7 @@ public class Life {
                     try {
                         k = Integer.parseInt(args[i]);
                     } catch (NumberFormatException e) { }
-                    if (k > 0) {
+                    if (k > 0 && k <= 100) {
                         numTasks = k;
                     } else {
                         die(String.format("Invalid number of tasks: %s\n",
@@ -138,8 +147,11 @@ public class Life {
     }
 }
 
+// This class is designed to parse a configuration file.
 class Parser {
 
+   // Method to extract information from a configuration file and store it in a
+   // Configuration object.
    public Configuration parse(String fileName) {
 	Configuration config = new Configuration();
 	try(BufferedReader br = new BufferedReader(new FileReader(fileName))) {
@@ -176,6 +188,8 @@ class Parser {
 	return config;
    }  
 
+    // A shape can be represented as a List of points on the UI. This method parses that information
+    // from a string written in the following format: (x1,y1);(x2,y2);(x3,y3);(x4,y4) 	
     private List<Point> getPoints(String s) {
 	String[] coordinates = s.split(";");
 	List<Point> points = new ArrayList<>();
@@ -197,6 +211,10 @@ class Parser {
 
 }
 
+// Wrapper class to store information that could be in config file. 
+// It would have been better coding style to write it using the
+// Builder design pattern and/or using Optionals, but due to the lack
+// of time, we have implemented it as a general Java class.
 class Configuration {
     public int numThreads;
     public int spin;
@@ -222,6 +240,7 @@ class Configuration {
     }
 }
 
+// Represents an x,y coordinate. 
 class Point {
     int x;
     int y;
@@ -230,8 +249,15 @@ class Point {
         x = row;
         y = col;
     }
+
+    public String toString() {
+	return "(" + String.valueOf(x) + "," + String.valueOf(y) + ")";
+    }
+
 }
 
+// Controller class where threads are created using ExecutorService and the 
+// appropraite tasks are delegated and run by the threads.
 class Delegator implements Runnable {
     private final LifeBoard lb;
     private final Coordinator c;
@@ -246,6 +272,7 @@ class Delegator implements Runnable {
         u = U;
         nt = numThreads;
         k = numTasks;
+	// Creating a pool of threads.
         pool = Executors.newFixedThreadPool(nt);
     }
 
@@ -254,6 +281,9 @@ class Delegator implements Runnable {
         c.register();
           while(true) {
               runOneGeneration();
+	      // The following statement helps in the functionality of 
+	      // the Step Button, which allows a user to go through the
+	      // game generation by generation.
 	      if (u.step_switch) {
 		  u.pauseButton.doClick();
               }
@@ -266,14 +296,21 @@ class Delegator implements Runnable {
 
     }
 
+    // Creates a sets of tasks and assigns them to the pool of threads using invokeAll.
     public void runOneGeneration() throws Coordinator.KilledException {
         List<Callable<Boolean>> tasks = generateTasks(k);
         try {
+	  // invokeAll takes care of the syncronization and task delegation. 
+	  // Given a set of tasks, it delegates them appropriately to each thread.
+	  // It returns when all tasks have been completed. Thus, as the programmer, 
+	  // we do not have to worry about creating a barrier. 
           pool.invokeAll(tasks);
           lb.updateBoard();
         } catch (InterruptedException e) { System.err.println("Exception :("); }
     }
 
+    // Divides the board into ranges of contiguous rows to be updated by a thread.
+    // Each task should have roughly n/numTask rows.
     public List<Callable<Boolean>> generateTasks(int numTasks) {
       double begin = 0;
       double interval = (lb.n*1.0) /( numTasks*1.0);
@@ -282,7 +319,7 @@ class Delegator implements Runnable {
       for(int i = 0; i < numTasks; i++) {
 	  if(end >= lb.n-1) {
 		end = lb.n*1.0;
-	 }
+	  }
           tasks.add(new Worker(lb, c, u, new Task((int) begin, (int) end)));
           begin += interval;
           end += interval;
@@ -294,6 +331,7 @@ class Delegator implements Runnable {
 // The Worker is the thread that does the actual work of calculating new
 // generations.
 //
+// We made this a Callable as invokeAll takes a collection of Callables.
 class Worker implements Callable<Boolean> {
     private final LifeBoard lb;
     private final Coordinator c;
@@ -304,15 +342,11 @@ class Worker implements Callable<Boolean> {
     // user code.  Rather, it is called by the Java runtime when user
     // code calls start().
     //
-    // The run() method of a worker thread *must* begin by calling
-    // c.register() and end by calling c.unregister().  These allow the
-    // user interface (via the Coordinator) to pause and terminate
-    // workers.  Note how the worker is set up to catch KilledException.
-    // In the process of unwinding back to here we'll cleanly and
-    // automatically release any monitor locks.  If you create new kinds
-    // of workers (as part of a parallel player), make sure they call
-    // c.register() and c.unregister() properly.
-    //
+    // This method updates the appropriate number of rows and returns a boolean.
+    // The boolean returned is of little use. It provides of with the convenience of
+    // using Callables, which seemed to be allowed in the prompt, as stated here:
+    // "In the Executor framework, you can use built-in Executor methods to force all extant tasks 
+    // to complete before starting the next generation."  
     public Boolean call() {
         try {
             c.register();
@@ -335,9 +369,12 @@ class Worker implements Callable<Boolean> {
     }
 }
 
+// Represents the range of rows that a thread should update.
+// start is inclusive and end is exclusive. In other words,
+// the range looks like, [start, end).
 class Task {
-    int start;
-    int end;
+    int start; // First row to be updated (inclusive).
+    int end; // First row after last row that should be update. 
 
     public Task(int s, int e) {
       start = s;
@@ -381,12 +418,11 @@ class LifeBoard extends JPanel {
 
     // This is the function that actually plays (one full generation of)
     // the game.  It is called by the run() method of Thread class
-    // Worker.  You'll want to replace this with something that does
-    // only part of a generation, so it can be called from multiple
-    // Workers concurrently.  Make sure all of your threads call
-    // c.register() when they start work, and c.unregister() when
-    // they finish, so the Coordinator can manage them.
+    // Worker.    
     //
+    // We split the original method into two separate methods, doGeneration and updateBoard.
+    // Instead of updating the entire board at once, each thread updates some number of rows. 
+
     public void doGeneration(Task task) throws Coordinator.KilledException {
         for (int i = task.start; i < task.end; i++) {
             for (int j = 0; j < n; j++) {
@@ -419,6 +455,9 @@ class LifeBoard extends JPanel {
 
     }
 
+
+    // This method updates and repaints the board (if necessary) when called. 
+    // It is called when all of the threads have finished updating their rows.
     public void updateBoard() throws Coordinator.KilledException {
       c.hesitate();
       T = B;  B = A;  A = T;
@@ -426,11 +465,10 @@ class LifeBoard extends JPanel {
           if (generation % 10 == 0) {
               System.out.print(System.currentTimeMillis() + ", ");
           }
-          ++generation;
       } else {
           repaint ();
       }
-          // tell graphic system that LifeBoard needs to be re-rendered
+      ++generation;
     }
 
     // The following method is called automatically by the graphics
@@ -503,7 +541,7 @@ class LifeBoard extends JPanel {
         if (glider) {
             // create an initial glider in the upper left corner
             B[0][1] = B[1][2] = B[2][0] = B[2][1] = B[2][2] = 1;
-        } else if (shape != null) {
+        } else if (shape != null) { // If the user specified a shape in the config file, it is added to the UI here.
 	    for (Point s: shape) {
 		B[s.y][s.x] = 1;
 	    }
@@ -541,7 +579,7 @@ class UI extends JPanel {
     final JButton stopButton = new JButton("Stop");
     final JButton clearButton = new JButton("Clear");
     final JButton quitButton = new JButton("Quit");
-    final JButton stepButton = new JButton("Step");
+    final JButton stepButton = new JButton("Step");// Added a button that allows the user to proceed in the game by one generation.
 
     // Constructor
     //
@@ -611,6 +649,11 @@ class UI extends JPanel {
                 System.exit(0);
             }
         });
+	// This button allows the user to look at the game generation by generation.
+	// If the game is currently running, this button will pause the game. 
+	// Otherwise, the button "clicks on" the run button, only allowing it to go 
+	// forward by one generation. This restriction is in the run method of the threads
+	// themselves.
         stepButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
 		step_switch = true;
@@ -645,6 +688,8 @@ class UI extends JPanel {
         root.setDefaultButton(runButton);
     }
 
+    // Everytime onRunClick is called, it creates a new thread. This new thread creates the other 
+    // threads which then update the board.
     public void onRunClick() {
         Delegator d = new Delegator(lb, c, this, numThreads, numTasks);
         ExecutorService executor = Executors.newSingleThreadExecutor();
