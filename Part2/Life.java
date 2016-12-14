@@ -27,8 +27,6 @@ public class Life {
     private static int pauseIterations = -(500000000/n/n);
         // nanoseconds per dot for a delay of about a half a second
     private static int numThreads = 1;
-        // I currently don't do anything with this variable.
-        // You should.
     private static int numTasks = 10;
     private static boolean headless = false;    // don't create GUI
     private static boolean glider = false;      // create initial glider
@@ -144,6 +142,10 @@ class Delegator implements Runnable {
         c.register();
           while(true) {
               runOneGeneration();
+	      if (u.step_switch) {
+		  u.pauseButton.doClick();
+              }
+	      u.step_switch = false;
           }
       } catch (Coordinator.KilledException e) {}
       finally {
@@ -153,18 +155,18 @@ class Delegator implements Runnable {
     }
 
     public void runOneGeneration() throws Coordinator.KilledException {
-        List<Callable<Integer>> tasks = generateTasks(k);
+        List<Callable<Boolean>> tasks = generateTasks(k);
         try {
           pool.invokeAll(tasks);
           lb.updateBoard();
         } catch (InterruptedException e) { System.err.println("Exception :("); }
     }
 
-    public List<Callable<Integer>> generateTasks(int numTasks) {
+    public List<Callable<Boolean>> generateTasks(int numTasks) {
       double begin = 0;
       double interval = (lb.n*1.0) /( numTasks*1.0);
       double end = interval;
-      List<Callable<Integer>> tasks = new ArrayList<>();
+      List<Callable<Boolean>> tasks = new ArrayList<>();
       for(int i = 0; i < numTasks; i++) {
 	  if(end >= lb.n-1) {
 		end = lb.n*1.0;
@@ -180,7 +182,7 @@ class Delegator implements Runnable {
 // The Worker is the thread that does the actual work of calculating new
 // generations.
 //
-class Worker implements Callable<Integer> {
+class Worker implements Callable<Boolean> {
     private final LifeBoard lb;
     private final Coordinator c;
     private final UI u;
@@ -199,18 +201,16 @@ class Worker implements Callable<Integer> {
     // of workers (as part of a parallel player), make sure they call
     // c.register() and c.unregister() properly.
     //
-    public Integer call() {
+    public Boolean call() {
         try {
             c.register();
             try {
-                //while (true) {
                     lb.doGeneration(t);
-                //}
-            } catch(Coordinator.KilledException e) { return 0; /* throw exception instead of catching it? */}
+            } catch(Coordinator.KilledException e) { return false; /* throw exception instead of catching it? */}
         } finally {
             c.unregister();
         }
-        return 1;
+        return true;
     }
 
     // Constructor
@@ -311,14 +311,9 @@ class LifeBoard extends JPanel {
       c.hesitate();
       T = B;  B = A;  A = T;
       if (headless) {
-	  if (generation == 0) { start_time = System.currentTimeMillis(); }
           if (generation % 10 == 0) {
               System.out.print(System.currentTimeMillis() + ", ");
           }
-	  if (generation == 388) {
-	      System.out.print("Covered board in: " + (System.currentTimeMillis() - start_time));
-	      System.exit(0);
-	  }
           ++generation;
       } else {
           repaint ();
@@ -412,6 +407,8 @@ class UI extends JPanel {
 
     private final JRootPane root;
     private static final int externalBorder = 6;
+ 
+    public boolean step_switch = false;
 
     private static final int stopped = 0;
     private static final int running = 1;
@@ -421,6 +418,15 @@ class UI extends JPanel {
 
     private int numThreads;
     private int numTasks;
+
+
+    final JButton runButton = new JButton("Run");
+    final JButton pauseButton = new JButton("Pause");
+    final JButton stopButton = new JButton("Stop");
+    final JButton clearButton = new JButton("Clear");
+    final JButton quitButton = new JButton("Quit");
+    final JButton stepButton = new JButton("Step");
+
     // Constructor
     //
     public UI(int N, RootPaneContainer pane, int pauseIterations,
@@ -432,12 +438,6 @@ class UI extends JPanel {
         numTasks = K;
 
         final JPanel b = new JPanel();   // button panel
-
-        final JButton runButton = new JButton("Run");
-        final JButton pauseButton = new JButton("Pause");
-        final JButton stopButton = new JButton("Stop");
-        final JButton clearButton = new JButton("Clear");
-        final JButton quitButton = new JButton("Quit");
 
         // Note that the addListener calls below pass an annonymous
         // inner class as argument.
@@ -495,6 +495,17 @@ class UI extends JPanel {
                 System.exit(0);
             }
         });
+        stepButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+		step_switch = true;
+  		if (state == running) {
+		    pauseButton.doClick();
+		} else if (state == paused || state == stopped) {
+		    runButton.doClick();
+		}
+
+            }
+        });
 
         // put the buttons into the button panel:
         b.setLayout(new FlowLayout());
@@ -503,6 +514,7 @@ class UI extends JPanel {
         b.add(stopButton);
         b.add(clearButton);
         b.add(quitButton);
+	b.add(stepButton);
 
         // put the LifeBoard canvas and the button panel into the UI:
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
