@@ -16,11 +16,10 @@ import javax.swing.*;
 import java.lang.Thread.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.concurrent.Callable;
+import java.io.*;
 
 public class Life {
     private static final int n = 100;    // number of cells on a side
@@ -30,9 +29,10 @@ public class Life {
     private static int numTasks = 10;
     private static boolean headless = false;    // don't create GUI
     private static boolean glider = false;      // create initial glider
+    private static List<Point> shape = null;
 
-    private UI buildUI(RootPaneContainer pane, int numTasks) {
-        return new UI(n, pane, pauseIterations, headless, glider, numThreads, numTasks);
+    private UI buildUI(RootPaneContainer pane, int numTasks, List<Point> shape) {
+        return new UI(n, pane, pauseIterations, headless, glider, numThreads, numTasks, shape);
     }
 
     // Print error message and exit.
@@ -46,7 +46,25 @@ public class Life {
     //
     private static void parseArgs(String[] args) {
         for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("-t")) {
+	    if (args[i].equals("-c")) {
+		if (++i >= args.length) {
+		   die("Missing config file.\n");
+		} else {
+		   Parser p = new Parser();
+		   Configuration config = p.parse(args[i]);
+ 		   if (config.isPresent()) {
+			if (config.numThreads != -1 && numThreads == 1) {
+				numThreads = config.numThreads;
+			} 
+			if (config.spin != -1 && pauseIterations == -(500000000/n/n)) {
+				pauseIterations = config.spin;
+			}
+			if (config.shape != null && !glider) {
+				shape = config.shape;
+			}
+		   } else { System.err.println("Could not configure from file. Using default values instead."); }
+		}
+	    } else if (args[i].equals("-t")) {
                 if (++i >= args.length) {
                     die("Missing number of threads\n");
                 } else {
@@ -110,13 +128,107 @@ public class Life {
             System.exit(0);
           }
         });
-        UI ui = me.buildUI(f, numTasks);
+        UI ui = me.buildUI(f, numTasks, shape);
         if (headless) {
             ui.onRunClick();
         } else {
           f.pack();
           f.setVisible(true);
         }
+    }
+}
+
+class Parser {
+
+   public Configuration parse(String fileName) {
+	Configuration config = new Configuration();
+	try(BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+		String line = "";
+		while( (line = br.readLine()) != null) {
+			line = line.trim().replace(" ", "");
+			if( line.startsWith("t:") ) {
+				String threads = line.replace("t:", "");
+				try {
+					int numThreads = Integer.parseInt(threads);
+					if (numThreads > 0) {
+						config.numThreads = numThreads;
+					} else { System.err.println("Whoops! Threads in config file must be > 0."); }
+					
+				} catch (NumberFormatException e) { System.err.println("Cannot read number of threads. Is the format \"t: <number here>\"?");}
+			} else if( line.startsWith("s:") ) {
+				String s = line.replace("s:", "");
+				try {
+					Integer spin = Integer.parseInt(s);
+					if (spin > 0) {
+						config.spin = spin;
+					} else { System.err.println("Whoops! Spin in config file must be > 0."); }
+					
+				} catch (NumberFormatException e) { System.err.println("Cannot read spin. Is the format \"s: <number here>\"?");}
+
+			} else if( line.startsWith("shape:") ){
+				String s = line.replace("shape:", "");
+				List<Point> shape = getPoints(s);
+				config.shape = shape;
+
+			}
+		}	
+	} catch (IOException e) { System.err.println("Cannot open file. Reverting to default configurations.");}
+	return config;
+   }  
+
+    private List<Point> getPoints(String s) {
+	String[] coordinates = s.split(";");
+	List<Point> points = new ArrayList<>();
+	for(String coor : coordinates) {
+		coor = coor.replace("(","").replace(")", "");
+		String[] point = coor.split(",");
+		try {
+			int x = Integer.parseInt(point[0]);
+			int y = Integer.parseInt(point[1]);
+			if (x > 0 && y > 0 && x < 100 && y < 100) { // NOTE: HARDCODED BOUNDRIES
+				points.add(new Point(x, y));
+			} else { System.err.println("Whoops! Coordinates must be in the bounds of the board in the config file.");}
+			
+		} catch (NumberFormatException e) { System.err.println("Cannot read points. Are they numbers?");}
+	}
+	return points;
+	
+    }
+
+}
+
+class Configuration {
+    public int numThreads;
+    public int spin;
+    public List<Point> shape;	
+
+    public Configuration() {
+	numThreads = -1;
+	spin = -1;
+	shape = null;
+    }
+
+    public Configuration(int NT, int S, List<Point> SH) {
+	numThreads = NT;
+	spin = S;
+	shape = SH;
+    }
+
+    public boolean isPresent() {
+        if (numThreads == -1 && spin == -1L && shape == null) {
+		return false;
+	}
+	return true;
+    }
+}
+
+class Point {
+    int x;
+    int y;
+
+    public Point(int row, int col) {
+        x = row;
+        y = col;
     }
 }
 
@@ -253,7 +365,7 @@ class LifeBoard extends JPanel {
     // following fields are set by constructor:
     private final Coordinator c;
     private final UI u;
-    public final int n;  // number of cells on a side // TODO: Change back to private.
+    public final int n;  // number of cells on a side.  
 
     // Called by the UI when it wants to start over.
     //
@@ -373,7 +485,7 @@ class LifeBoard extends JPanel {
     // Constructor
     //
     public LifeBoard(int N, Coordinator C, UI U,
-                     boolean hdless, boolean glider) {
+                     boolean hdless, boolean glider, List<Point> shape) {
         n = N;
         c = C;
         u = U;
@@ -391,7 +503,11 @@ class LifeBoard extends JPanel {
         if (glider) {
             // create an initial glider in the upper left corner
             B[0][1] = B[1][2] = B[2][0] = B[2][1] = B[2][2] = 1;
-        }
+        } else if (shape != null) {
+	    for (Point s: shape) {
+		B[s.y][s.x] = 1;
+	    }
+	}
     }
 }
 
@@ -430,10 +546,10 @@ class UI extends JPanel {
     // Constructor
     //
     public UI(int N, RootPaneContainer pane, int pauseIterations,
-              boolean headless, boolean glider, int NT, int K) {
+              boolean headless, boolean glider, int NT, int K, List<Point> shape) {
         final UI u = this;
         c = new Coordinator(pauseIterations);
-        lb = new LifeBoard(N, c, u, headless, glider);
+        lb = new LifeBoard(N, c, u, headless, glider, shape);
         numThreads = NT;
         numTasks = K;
 
