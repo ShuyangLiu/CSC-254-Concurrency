@@ -182,18 +182,26 @@ class Parser {
 					int numThreads = Integer.parseInt(threads);
 					if (numThreads > 0) {
 						config.numThreads = numThreads;
-					} else { System.err.println("Whoops! Threads in config file must be > 0."); }
+					} else { 
+						System.err.println("Whoops! Threads in config file must be > 0."); 
+					}
 					
-				} catch (NumberFormatException e) { System.err.println("Cannot read number of threads. Is the format \"t: <number here>\"?");}
+				} catch (NumberFormatException e) { 
+					System.err.println("Cannot read number of threads. Is the format \"t: <number here>\"?");
+				}
 			} else if( line.startsWith("s:") ) {
 				String s = line.replace("s:", "");
 				try {
 					Integer spin = Integer.parseInt(s);
 					if (spin > 0) {
 						config.spin = spin;
-					} else { System.err.println("Whoops! Spin in config file must be > 0."); }
+					} else { 
+						System.err.println("Whoops! Spin in config file must be > 0."); 
+					}
 					
-				} catch (NumberFormatException e) { System.err.println("Cannot read spin. Is the format \"s: <number here>\"?");}
+				} catch (NumberFormatException e) { 
+					System.err.println("Cannot read spin. Is the format \"s: <number here>\"?");
+				}
 
 			} else if( line.startsWith("shape:") ){
 				String s = line.replace("shape:", "");
@@ -219,9 +227,13 @@ class Parser {
 			int y = Integer.parseInt(point[1]);
 			if (x > 0 && y > 0 && x < 100 && y < 100) { // NOTE: HARDCODED BOUNDRIES
 				points.add(new Point(x, y));
-			} else { System.err.println("Whoops! Coordinates must be in the bounds of the board in the config file.");}
+			} else { 
+				System.err.println("Whoops! Coordinates must be in the bounds of the board in the config file.");
+			}
 			
-		} catch (NumberFormatException e) { System.err.println("Cannot read points. Are they numbers?");}
+		} catch (NumberFormatException e) { 
+			System.err.println("Cannot read points. Are they numbers?");
+		}
 	}
 	return points;
 	
@@ -317,7 +329,6 @@ class Worker extends Thread {
 			                }
 	                } else {
 	                	//If this is the last thread
-	                	//Life.end_time = System.nanoTime();
 	                        Life.counter = 0; // reset counter to zero
 	                	lb.updateBoard(); // update the board
         	                //pause if it is in step mode
@@ -436,11 +447,10 @@ class LifeBoard extends JPanel {
 	    	if (generation % 10 == 0) {
 	    		System.out.print(System.currentTimeMillis() + ", ");
 	    	}
-		++generation;
+			++generation;
 	    } else {
-            //System.out.println(Color_Code.wrap("[DEBUG] updateBoard: "+SwingUtilities.isEventDispatchThread(),225));
-		repaint ();
-                ++generation;
+			repaint ();
+            ++generation;
 	    }
 
     }
@@ -515,11 +525,12 @@ class LifeBoard extends JPanel {
         if (glider) {
             // create an initial glider in the upper left corner
             B[0][1] = B[1][2] = B[2][0] = B[2][1] = B[2][2] = 1;
-        } else if (shape != null) { // If the user specified a shape in the config file, it is added to the UI here.
-	    for (Point s: shape) {
-		B[s.y][s.x] = 1;
-	    }
-	}
+        } else if (shape != null) { 
+        	// If the user specified a shape in the config file, it is added to the UI here.
+	    	for (Point s: shape) {
+				B[s.y][s.x] = 1;
+	    	}
+		}
 
     }
 
@@ -568,8 +579,13 @@ class UI extends JPanel {
     public final JButton stopButton ;
     public final JButton clearButton ;
     public final JButton quitButton ;
-    public final JButton stepButton ; // Added a button that allows the user to proceed in the game by one generatio 
-    public final JButton configButton; // Added a button that allows the user to get the current configuration of the board, so long as the game is paused or stopped.
+
+    // Added a button that allows the user to proceed in the game by one generatio 
+    public final JButton stepButton ; 
+    // Added a button that allows the user to get the current configuration of the board, 
+    //so long as the game is paused or stopped.
+    public final JButton configButton; 
+
 
     public LifeBoard getLifeBoard() // a getter method for lb
     {
@@ -597,7 +613,7 @@ class UI extends JPanel {
         clearButton = new JButton("Clear");
         quitButton = new JButton("Quit");
         stepButton = new JButton("Step"); 
-	configButton = new JButton("Get Configuration"); 
+		configButton = new JButton("Get Configuration"); 
 
         // Note that the addListener calls below pass an annonymous
         // inner class as argument.
@@ -671,7 +687,6 @@ class UI extends JPanel {
         });
         stopButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                //System.out.println(Color_Code.wrap("[DEBUG] updateBoard: "+SwingUtilities.isEventDispatchThread(),225));
                 state = stopped;
                 c.stop();
                 root.setDefaultButton(runButton);
@@ -690,18 +705,20 @@ class UI extends JPanel {
                 System.exit(0);
             }
         });
-	// Thus buggon allows the user to get the current configuration of the board, so long
+	// This button allows the user to get the current configuration of the board, so long
 	// as the game is currently paused or stopped. It will create a file called output_config.txt
 	// and store the configuration in there.
 	configButton.addActionListener(new ActionListener() {
 	    public void actionPerformed(ActionEvent e) {
-		if (state == running) {
-		    System.err.println("Game must be paused or stopped in order to get configuration.");
-		} else if (state == paused || state == stopped) {
-		    try (BufferedWriter bw = new BufferedWriter(new FileWriter(outputFile))) {
-			bw.write(buildConfigString(pauseIterations));
-		    } catch (IOException ex) { System.err.println("Error: could not create config file."); }
-		}
+			if (state == running) {
+			    System.err.println("Game must be paused or stopped in order to get configuration.");
+			} else if (state == paused || state == stopped) {
+			    try (BufferedWriter bw = new BufferedWriter(new FileWriter(outputFile))) {
+					bw.write(buildConfigString(pauseIterations));
+			    } catch (IOException ex) { 
+			    	System.err.println("Error: could not create config file."); 
+			    }
+			}
 	    }
 	});
 
@@ -714,7 +731,7 @@ class UI extends JPanel {
         b.add(clearButton);
         b.add(quitButton);
         b.add(stepButton);
-	b.add(configButton);
+		b.add(configButton);
 
 
         // put the LifeBoard canvas and the button panel into the UI:
@@ -732,21 +749,25 @@ class UI extends JPanel {
 
     // Builds the string that contains all of the information to be put in the config file.
     public String buildConfigString(int pauseIterations) {
-	StringBuilder content = new StringBuilder();
-	content.append("t:");
-	content.append(numThreads);
-	content.append("\n");
-	content.append("s:");
-	content.append(pauseIterations);
-	content.append("\n");
-	content.append("shape:");
-	List<Point> points = lb.getPoints();
-	for(Point p : points) {
-	    content.append(p);
-	    content.append(";");
-	}
-	content.append("\n");
-	return content.toString();
+		StringBuilder content = new StringBuilder();
+
+		content.append("t:");
+		content.append(numThreads);
+		content.append("\n");
+		content.append("s:");
+		content.append(pauseIterations);
+		content.append("\n");
+		content.append("shape:");
+
+		List<Point> points = lb.getPoints();
+
+		for(Point p : points) {
+		    content.append(p);
+		    content.append(";");
+		}
+
+		content.append("\n");
+		return content.toString();
     }
 
     // onRunClick starts all of the threads passed into it.
